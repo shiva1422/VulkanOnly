@@ -7,7 +7,7 @@
 
 #include "KSVulkanApplication.hpp"
 #include "cassert"
-#include "Logger.h"
+#include "../Logger.h"
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
@@ -17,6 +17,8 @@
 #include <glm/mat4x4.hpp>
 
 #define LOGTAG "KSVulkanApplication"
+
+ 
 
 KSVulkanApplication::KSVulkanApplication()
 {
@@ -37,7 +39,7 @@ void KSVulkanApplication::run()
     
     while (!glfwWindowShouldClose(window))
     {
-        Logger::info(LOGTAG, "Loop");
+       // Logger::info(LOGTAG, "Loop");
         glfwPollEvents();
     }
    // KSApplication::run();
@@ -45,8 +47,7 @@ void KSVulkanApplication::run()
 
 bool KSVulkanApplication::vulkanInit()
 {
-    
-    return true;
+    return vulkan.configure();
 }
 
 void KSVulkanApplication::onWindowInit()

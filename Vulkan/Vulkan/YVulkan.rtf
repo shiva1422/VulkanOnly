@@ -1,0 +1,61 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2636
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fswiss\fcharset0 Helvetica;\f1\froman\fcharset0 Times-Roman;\f2\froman\fcharset0 Times-Bold;
+\f3\fnil\fcharset0 HelveticaNeue;\f4\fnil\fcharset0 Menlo-Regular;}
+{\colortbl;\red255\green255\blue255;\red0\green0\blue0;\red34\green34\blue34;\red255\green255\blue255;
+\red83\green83\blue83;\red247\green238\blue241;}
+{\*\expandedcolortbl;;\cssrgb\c0\c0\c0;\cssrgb\c17647\c17647\c17647;\cssrgb\c100000\c100000\c100000;
+\cssrgb\c40000\c40000\c40000;\cssrgb\c97647\c94902\c95686;}
+\margl1440\margr1440\vieww9000\viewh8400\viewkind0
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural\partightenfactor0
+
+\f0\fs24 \cf0 \
+\
+PROS:\
+\
+*.
+\f1\fs29\fsmilli14667 \cf2 \expnd0\expndtw0\kerning0
+The Vulkan API was designed with performance in mind. One way to increase its performance is to lower state and error checking performed by the driver. This is one of the reasons Vulkan is called a "thin API" or "thin driver," it is a minimal abstraction of the hardware, which is required for the API to be portable across multiple hardware vendors and device types (high-performance desktop computers, mobile phones, and integrated and low-power embedded systems). 
+\fs24 \
+
+\f0 \cf0 \kerning1\expnd0\expndtw0 \
+\
+\
+COns:\
+\
+\pard\pardeftab720\sa240\partightenfactor0
+
+\f1\fs29\fsmilli14667 \cf2 \expnd0\expndtw0\kerning0
+*makes creating applications with the Vulkan API much more difficult, compared to the traditional high-level APIs such as OpenGL. It's because very little feedback is given to developers by the driver, as it expects that programmers will correctly use the API and abide by rules defined in the Vulkan specification :\
+sol:
+\fs24  \
+
+\fs29\fsmilli14667 \
+To mitigate this problem, Vulkan was also designed to be a layered API. The lowest layer, the core, is the 
+\f2\b Vulkan API 
+\f1\b0 itself, which communicates with the 
+\f2\b Driver, 
+\f1\b0 allowing us to program the 
+\f2\b Hardware 
+\f1\b0 (as seen in the preceding diagram). On top of it (between the 
+\f2\b Application 
+\f1\b0 and the 
+\f2\b Vulkan API
+\f1\b0 ), developers can enable additional layers, to ease the debugging process. 
+\fs24 \
+\
+\
+\
+\
+\
+\
+Validation layer notes:\
+\
+\pard\pardeftab720\partightenfactor0
+
+\f3\fs28 \cf3 \cb4 \outl0\strokewidth0 \strokec3 There are a lot more settings for the behavior of validation layers than just the flags specified in the\'a0
+\f4\fs25\fsmilli12600 \cf5 \cb6 \strokec5 VkDebugUtilsMessengerCreateInfoEXT
+\f3\fs28 \cf3 \cb4 \strokec3 \'a0struct. Browse to the Vulkan SDK and go to the\'a0
+\f4\fs25\fsmilli12600 \cf5 \cb6 \strokec5 Config
+\f3\fs28 \cf3 \cb4 \strokec3 \'a0directory. There you will find a\'a0
+\f4\fs25\fsmilli12600 \cf5 \cb6 \strokec5 vk_layer_settings.txt
+\f3\fs28 \cf3 \cb4 \strokec3 \'a0file that explains how to configure the layers.}

@@ -47,6 +47,8 @@
 		1EDD528B29166931006A4EBF /* KSVulkanApplication.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = KSVulkanApplication.hpp; sourceTree = "<group>"; };
 		1EDD528E29167356006A4EBF /* KSVulkan.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = KSVulkan.cpp; sourceTree = "<group>"; };
 		1EDD528F29167356006A4EBF /* KSVulkan.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = KSVulkan.hpp; sourceTree = "<group>"; };
+		1EE42038291A1A54003D9585 /* Notes.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = Notes.xib; sourceTree = "<group>"; };
+		1EE42039291A1A7E003D9585 /* YVulkan.rtf */ = {isa = PBXFileReference; lastKnownFileType = text.rtf; path = YVulkan.rtf; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -125,6 +127,8 @@
 			children = (
 				1EDD528E29167356006A4EBF /* KSVulkan.cpp */,
 				1EDD528F29167356006A4EBF /* KSVulkan.hpp */,
+				1EE42038291A1A54003D9585 /* Notes.xib */,
+				1EE42039291A1A7E003D9585 /* YVulkan.rtf */,
 			);
 			name = KSVulkan;
 			sourceTree = "<group>";

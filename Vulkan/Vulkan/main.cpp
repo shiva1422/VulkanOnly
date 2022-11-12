@@ -7,7 +7,7 @@
 
 #include <iostream>
 #include "Logger.h"
-#include "KSVulkanApplication.hpp"
+#include "Application/KSVulkanApplication.hpp"
 
 int main()
 {

@@ -6,7 +6,7 @@
 //
 
 #include "Application.hpp"
-#include "Logger.h"
+#include "../Logger.h"
 
 KSApplication::KSApplication()
 {
