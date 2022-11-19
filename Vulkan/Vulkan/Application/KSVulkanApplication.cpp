@@ -15,6 +15,7 @@
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/vec4.hpp>
 #include <glm/mat4x4.hpp>
+#include <unistd.h>
 
 #define LOGTAG "KSVulkanApplication"
 
@@ -34,14 +35,15 @@ KSVulkanApplication::~KSVulkanApplication()
 void KSVulkanApplication::run()
 {
     onWindowInit();
-    
-    assert(vulkanInit());
-    
+    vulkanInit();
+
     while (!glfwWindowShouldClose(window))
     {
-       // Logger::info(LOGTAG, "Loop");
+        usleep(32000);
+     //   Logger::info(LOGTAG, "Main Loop");
         glfwPollEvents();
     }
+
    // KSApplication::run();
 }
 

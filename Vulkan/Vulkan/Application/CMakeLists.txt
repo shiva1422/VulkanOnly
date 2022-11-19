@@ -3,13 +3,12 @@ cmake_minimum_required(VERSION 3.4.1)
 project(Vulkanapp)
 
 
-#[[if (NOT DEFINED ENV{GLFW_HOME})
-    message(FATAL_ERROR "found no env named GLFW_HOME")
+if (NOT DEFINED ENV{GLFW_HOME})
+    message(STATUS "found no env named GLFW_HOME")
+   #message(FATAL_ERROR "found no env named GLM_HOME")
+
 endif()
-if (NOT DEFINED ENV{GLM_HOME})
-    message(FATAL_ERROR "found no env named GLM_HOME")
-endif()
-set(GLFW_HOME $ENV{GLFW_HOME})]]
+#set(GLFW_HOME $ENV{GLFW_HOME})
 
 set(GLFW_DIR "/opt/homebrew/Cellar/glfw/3.3.8")
 include_directories( ${GLFW_DIR}/include)

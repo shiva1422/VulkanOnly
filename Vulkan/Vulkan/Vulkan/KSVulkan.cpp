@@ -54,7 +54,11 @@ const std::vector<const char*> validationLayers = {
 
 bool KSVulkan::configure()
 {
-    return createInstance();
+    bool res = createInstance() ;
+    setupDebugMessenger();
+    res = res && selectDevice() && createLogicalDevice();
+    assert(res);
+    return res;
 }
 
 bool KSVulkan::createInstance()
@@ -99,6 +103,7 @@ bool KSVulkan::createInstance()
     
     //Mac incompatiblility err
     instanceExt.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
+    //instanceExt.push_back();
     
     /*GLFW
     uint32_t glfwExtensionCount = 0;
@@ -113,7 +118,7 @@ bool KSVulkan::createInstance()
                                                .enabledLayerCount=0,
                                                .ppEnabledLayerNames=nullptr,
                                                 //TODO below 2 platform specific
-                                               .enabledExtensionCount=static_cast<uint32_t>(extensionCount),
+                                               .enabledExtensionCount=static_cast<uint32_t>(instanceExt.size()),
                                                .ppEnabledExtensionNames = instanceExt.data(),
                                                };
     
@@ -144,14 +149,24 @@ bool KSVulkan::createInstance()
     return true;
 }
 
-bool isDeviceSuitable(VkPhysicalDevice device)
+bool KSVulkan::isDeviceSuitable(VkPhysicalDevice device)
 {
     //To evaluate the suitability of a device we can start by querying for some details. Basic device properties like the name, type //and supported Vulkan version can be queried using vkGetPhysicalDeviceProperties.
     
    // VkPhysicalDeviceProperties deviceProperties;
    // vkGetPhysicalDeviceProperties(device, &deviceProperties);
+//    vkGetPhysicalDeviceProperties(device, &deviceProperties);
+//    vkGetPhysicalDeviceFeatures(device, &deviceFeatures);
+
+//    return deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU &&
+//           deviceFeatures.geometryShader;/
+//    Instead of just checking if a device is suitable or not and going with the first one,
+//    you could also give each device a score and pick the highest one. That way you could favor a dedicated
+//    graphics card by giving it ahigher score, but fall back to an integrated GPU if that's the only available one
+//check pickPhysicalDevice()? from tuts
+
     
-    
+    return findGFXFamilyQueues(device);
     //The support for optional features like texture compression, 64 bit floats and multi viewport rendering (useful for VR) can be queried using vkGetPhysicalDeviceFeatures:
     
     return true;//can check for various features and select based on the requirement;//just selecting first gpu now
@@ -182,6 +197,114 @@ bool KSVulkan::selectDevice()
 
     return vkGpu != VK_NULL_HANDLE;
 }
+
+bool KSVulkan::findGFXFamilyQueues(VkPhysicalDevice device)
+{
+    /*
+     *  almost every operation in Vulkan, anything from drawing to uploading textures, requires commands to be submitted to a queue.
+     *  There are different types of queues that originate
+     *  from different queue families and each family of queues allows only a subset of commands.
+     *  For example, there could be a queue family that only allows processing
+     *  of compute commands or one that only allows memory transfer related commands.
+     */
+
+    //Right only going to look for a queue that supports graphics commands later compute?
+
+    uint32_t queueFamilyCount = 0;
+    vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
+
+    std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
+    vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
+    /*
+     * The VkQueueFamilyProperties struct contains some details about the queue family, including the type of operations that are supported and the number of queues that
+     * can be created based on that family. We need to find at least one queue family that supports VK_QUEUE_GRAPHICS_BIT.
+     */
+
+
+
+    int i = 0;
+    for (const auto& queueFamily : queueFamilies) {
+        if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+            indices.graphicsFamily = i;
+            return true;
+        }
+
+        i++;
+    }
+
+    return false;
+}
+
+
+
+bool KSVulkan::createLogicalDevice()
+{
+   //can select multiple logical devices from the same physical device for varying requirements.
+
+   /*
+    * The creation of a logical device involves specifying a bunch of details in structs again, of which the first one will be VkDeviceQueueCreateInfo.
+    * This structure describes the number of queues we want for a single queue family. Right now we're only interested in a queue with graphics capabilities.
+    */
+
+    VkDeviceQueueCreateInfo queueCreateInfo{};
+    queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+    //TODO indices.graphicsFamily can be some default value if not inited from findQueueFamilies but still be valid should be confirmed in findQueueFamilies
+    queueCreateInfo.queueFamilyIndex = indices.graphicsFamily;
+    queueCreateInfo.queueCount = 1;
+
+//    Vulkan lets you assign priorities to queues to influence the scheduling of command buffer execution
+//    using floating point numbers between 0.0 and 1.0. This is required even if there is only a single queue
+    float queuePriority = 1.0f;
+    queueCreateInfo.pQueuePriorities = &queuePriority;
+
+    //Logical Device Creation
+    VkDeviceCreateInfo deviceCreateInfo{};
+    deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+    deviceCreateInfo.pQueueCreateInfos = &queueCreateInfo;
+    deviceCreateInfo.queueCreateInfoCount = 1;
+
+    deviceCreateInfo.pEnabledFeatures = &deviceFeatures;//TODO before creating
+
+    //device extensions
+    deviceCreateInfo.enabledExtensionCount = 1;
+    const char* deviceExtension = "VK_KHR_portability_subset";//mac err
+
+    //TODO check may not be required
+    if (enableValidationLayers) {
+        deviceCreateInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
+        deviceCreateInfo.ppEnabledLayerNames = validationLayers.data();
+    } else {
+        deviceCreateInfo.enabledLayerCount = 0;
+    }
+
+    std::vector<const char*>  deviceExt;//fromCreateInstace
+    deviceExt.push_back("VK_KHR_portability_subset");
+    deviceCreateInfo.enabledExtensionCount = deviceExt.size();
+    deviceCreateInfo.ppEnabledExtensionNames = deviceExt.data();
+
+    if (vkCreateDevice(vkGpu, &deviceCreateInfo, nullptr, &vkDevice) != VK_SUCCESS) {
+        Logger::error(LOGTAG,"create logical device failed");//reason print
+        return false;
+    }
+
+    /*
+     * The queues are automaticall created along with the logical device, but we don't have a handle to interface
+     * with them yet.Device queues are implicitly cleaned up when the device is destroyed
+     */
+
+    //We can use the vkGetDeviceQueue function to retrieve queue handles for each queue family
+
+    //TODO indices.graphicsFamily should be inited correctly ,default intialize might have value that might be valid but not correct
+    vkGetDeviceQueue(vkDevice, indices.graphicsFamily, 0, &graphicsQueue);
+
+    //Now Graphics card can be used to do amazing stuff but not quite enough :)
+
+    return true;
+}
+
+
+
+
 bool KSVulkan::createSurface()
 {
     return true;
@@ -195,6 +318,7 @@ void KSVulkan::release()
       DestroyDebugUtilsMessengerEXT(vkInstance, debugMessenger, nullptr);
     }
 
+    vkDestroyDevice(vkDevice, nullptr);
     vkDestroyInstance(vkInstance, nullptr);
 }
 
@@ -254,9 +378,9 @@ void KSVulkan::setupDebugMessenger()
     createInfo.pfnUserCallback = debugCallback;
     createInfo.pUserData = nullptr; // Optional
     
-    if (CreateDebugUtilsMessengerEXT(vkInstance, &createInfo, nullptr, &debugMessenger) != VK_SUCCESS) {
+    if (CreateDebugUtilsMessengerEXT(vkInstance, &createInfo, nullptr, &debugMessenger) != VK_SUCCESS)
+    {
         Logger::error(LOGTAG,"Error setup debug messenger");
     }
 
 }
-

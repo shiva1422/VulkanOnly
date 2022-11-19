@@ -22,6 +22,18 @@
  Enumerate the available instance extensions (vkEnumerateInstanceExtensionProperties), and check that the minimum extensions are supported (e.g. VK_KHR_surface and the platform's surface extension.) This is your #2. IMO it's probably overkill to do all that work (which is platform-specific since it involves creating a window) on top of checking that the extensions are supported.
  */
 
+
+
+//TO store all indices of queuefamilies we nee
+class QueueFamilyIndices{
+
+private:
+
+    friend class KSVulkan;
+    //TODO 0 indicates a valid queue value so its not good to decide if its valid number try set to max of use std::optional  c++17
+    uint32_t graphicsFamily;
+};
+
 class KSVulkan{
     
 public:
@@ -31,15 +43,26 @@ public:
     void release();
 
 private:
-    
-     bool createInstance();
-    
-     bool createSurface();
-    
-     bool selectDevice();
-    
-     bool findGFXFamilyQueueAndCreateLogicalDevice();
-    
+
+    //In Order
+
+    bool createInstance();
+
+    //TODO Check previous android code
+    bool findGFXFamilyQueues(VkPhysicalDevice device);
+
+    bool isDeviceSuitable(VkPhysicalDevice device);
+
+    bool selectDevice();
+
+    bool createLogicalDevice();
+
+    bool createSurface();
+
+
+
+
+
      bool checkValidationSupport();
     
      void setupDebugMessenger();
@@ -53,8 +76,14 @@ private:
      VkInstance vkInstance;
      VkPhysicalDevice vkGpu = VK_NULL_HANDLE;
      VkDevice vkDevice = VK_NULL_HANDLE;
+     VkQueue graphicsQueue;
      VkSurfaceKHR vkSurface;
-    
+     QueueFamilyIndices indices;
+
+     //TODO createLogicalDevice
+     VkPhysicalDeviceFeatures deviceFeatures{};
+
+
     //debug
     VkDebugUtilsMessengerEXT debugMessenger;
 
@@ -67,7 +96,6 @@ private:
     
     
 };
-
 
 
 #endif /* KSVulkan_hpp */
