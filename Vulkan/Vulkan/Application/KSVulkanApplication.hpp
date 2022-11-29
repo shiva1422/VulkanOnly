@@ -13,10 +13,11 @@
 #include <stdio.h>
 #include "Application.hpp"
 #include "../Vulkan/KSVulkan.hpp"
+#include "../Vulkan/KSWindow.h"
 
 class GLFWwindow;
 
-class KSVulkanApplication : public KSApplication{
+class KSVulkanApplication : public KSApplication ,public KSWindowVKInterface{
     
 public:
     
@@ -34,6 +35,8 @@ public:
 private:
     
     bool vulkanInit();
+
+    bool createVKSurface();//TODO move to KSVulkan
     
 private:
     KSVulkan vulkan;

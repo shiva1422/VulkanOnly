@@ -8,8 +8,14 @@
 #include "KSVulkan.hpp"
 #include <vector>
 #include "../Logger.h"
-
+#include "set"
+#include "string"
 #define LOGTAG "KSVulkan"
+
+
+//platforms
+
+
 
 /*
  * steps :
@@ -52,11 +58,17 @@ const std::vector<const char*> validationLayers = {
     "VK_LAYER_KHRONOS_validation"
 };
 
+const std::vector<const char*> deviceExtensions = {
+        VK_KHR_SWAPCHAIN_EXTENSION_NAME
+};
 bool KSVulkan::configure()
 {
     bool res = createInstance() ;
     setupDebugMessenger();
-    res = res && selectDevice() && createLogicalDevice();
+    // The window surface needs to be created right after the instance creation, because it can actually influence the physical device selection
+    assert(vkSurfaceCreator != nullptr);
+    vkSurfaceCreator->createVKSurface();//TODO refact
+    res = res && selectPhysicalDevice() && createLogicalDevice() && createSwapChain();
     assert(res);
     return res;
 }
@@ -149,6 +161,24 @@ bool KSVulkan::createInstance()
     return true;
 }
 
+bool KSVulkan::checkDeviceExtensionSupport(VkPhysicalDevice device)
+{
+
+    uint32_t extensionCount;
+    vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, nullptr);
+
+    std::vector<VkExtensionProperties> availableExtensions(extensionCount);
+    vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, availableExtensions.data());
+
+    std::set<std::string> requiredExtensions(deviceExtensions.begin(), deviceExtensions.end());
+
+    for (const auto& extension : availableExtensions) {
+        requiredExtensions.erase(extension.extensionName);
+    }
+
+    return requiredExtensions.empty();
+}
+
 bool KSVulkan::isDeviceSuitable(VkPhysicalDevice device)
 {
     //To evaluate the suitability of a device we can start by querying for some details. Basic device properties like the name, type //and supported Vulkan version can be queried using vkGetPhysicalDeviceProperties.
@@ -165,15 +195,26 @@ bool KSVulkan::isDeviceSuitable(VkPhysicalDevice device)
 //    graphics card by giving it ahigher score, but fall back to an integrated GPU if that's the only available one
 //check pickPhysicalDevice()? from tuts
 
-    
-    return findGFXFamilyQueues(device);
+    bool res = false;
+    res =  findGFXFamilyQueues(device) && checkDeviceExtensionSupport(device);
+
+    //only if swapChainExtension supported
+    if(res)
+    {
+        SwapChainInfo info = getSwapChainInfo(device);
+        res = !info.formats.empty() && !info.presentModes.empty();
+    }
+
+
+    return res;
+    ;
     //The support for optional features like texture compression, 64 bit floats and multi viewport rendering (useful for VR) can be queried using vkGetPhysicalDeviceFeatures:
     
     return true;//can check for various features and select based on the requirement;//just selecting first gpu now
     
 }
 
-bool KSVulkan::selectDevice()
+bool KSVulkan::selectPhysicalDevice()
 {
     //Multiple gpu devices can be selected and used and device will be destoued with instance so no need to cleanup
     
@@ -222,17 +263,35 @@ bool KSVulkan::findGFXFamilyQueues(VkPhysicalDevice device)
 
 
 
+    bool found = false;
     int i = 0;
+    bool bGraphicsFam = false;
+    bool bPresentFam = false;
     for (const auto& queueFamily : queueFamilies) {
         if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
             indices.graphicsFamily = i;
-            return true;
+           // return true;
+           bGraphicsFam = true;
+
         }
 
+        // queue family that has the capability of presenting to our window surface.//Surface should be created here
+        VkBool32 presentSupport = false;
+        vkGetPhysicalDeviceSurfaceSupportKHR(device, i, vkSurface, &presentSupport);
+        if(presentSupport)
+            bPresentFam = true;
+
         i++;
+
+        /*Note that it's very likely that these end up being the same queue family after all, but throughout the program we will treat them as if they were separate queues for a uniform approach
+        Nevertheless, you could add logic to explicitly prefer a physical device that supports drawing and presentation in the same queue for improved performance.
+         */
+        if(bGraphicsFam && bPresentFam)
+            break;
     }
 
-    return false;
+    found = bGraphicsFam && bPresentFam;//all required families are found
+    return found;
 }
 
 
@@ -246,22 +305,28 @@ bool KSVulkan::createLogicalDevice()
     * This structure describes the number of queues we want for a single queue family. Right now we're only interested in a queue with graphics capabilities.
     */
 
-    VkDeviceQueueCreateInfo queueCreateInfo{};
-    queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-    //TODO indices.graphicsFamily can be some default value if not inited from findQueueFamilies but still be valid should be confirmed in findQueueFamilies
-    queueCreateInfo.queueFamilyIndex = indices.graphicsFamily;
-    queueCreateInfo.queueCount = 1;
+    std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
+    //below values should be valid and indited properly before this in findQueuefams
+    std::set<uint32_t> uniqueQueueFamilies = {indices.graphicsFamily, indices.presentFamily};//TODO validity
 
-//    Vulkan lets you assign priorities to queues to influence the scheduling of command buffer execution
-//    using floating point numbers between 0.0 and 1.0. This is required even if there is only a single queue
+    //    Vulkan lets you assign priorities to queues to influence the scheduling of command buffer execution
+    //    //If the queue families are the same, then we only need to pass its index once. Finally, add a call to retrieve the queue handle:
     float queuePriority = 1.0f;
-    queueCreateInfo.pQueuePriorities = &queuePriority;
+    for (uint32_t queueFamily : uniqueQueueFamilies) {
+        VkDeviceQueueCreateInfo queueCreateInfo{};
+        queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+        queueCreateInfo.queueFamilyIndex = queueFamily;
+        queueCreateInfo.queueCount = 1;
+        queueCreateInfo.pQueuePriorities = &queuePriority;
+        queueCreateInfos.push_back(queueCreateInfo);
+    }
+
 
     //Logical Device Creation
     VkDeviceCreateInfo deviceCreateInfo{};
     deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-    deviceCreateInfo.pQueueCreateInfos = &queueCreateInfo;
-    deviceCreateInfo.queueCreateInfoCount = 1;
+    deviceCreateInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
+    deviceCreateInfo.pQueueCreateInfos = queueCreateInfos.data();
 
     deviceCreateInfo.pEnabledFeatures = &deviceFeatures;//TODO before creating
 
@@ -277,8 +342,14 @@ bool KSVulkan::createLogicalDevice()
         deviceCreateInfo.enabledLayerCount = 0;
     }
 
+   // Using a swapchain requires enabling the VK_KHR_swapchain extension
     std::vector<const char*>  deviceExt;//fromCreateInstace
     deviceExt.push_back("VK_KHR_portability_subset");
+    for(auto ext : deviceExtensions)
+    {
+        deviceExt.push_back(ext);
+    }
+    //deviceExt.push_back(deviceExtensions.)
     deviceCreateInfo.enabledExtensionCount = deviceExt.size();
     deviceCreateInfo.ppEnabledExtensionNames = deviceExt.data();
 
@@ -288,14 +359,14 @@ bool KSVulkan::createLogicalDevice()
     }
 
     /*
-     * The queues are automaticall created along with the logical device, but we don't have a handle to interface
+     * The queues are automatically created along with the logical device, but we don't have a handle to interface
      * with them yet.Device queues are implicitly cleaned up when the device is destroyed
      */
 
     //We can use the vkGetDeviceQueue function to retrieve queue handles for each queue family
-
-    //TODO indices.graphicsFamily should be inited correctly ,default intialize might have value that might be valid but not correct
+    //TODO indices.graphicsFamily && presentFam should be inited correctly ,default intialize might have value that might be valid but not correct
     vkGetDeviceQueue(vkDevice, indices.graphicsFamily, 0, &graphicsQueue);
+    vkGetDeviceQueue(vkDevice,indices.presentFamily,0,&presentQueue);
 
     //Now Graphics card can be used to do amazing stuff but not quite enough :)
 
@@ -305,9 +376,10 @@ bool KSVulkan::createLogicalDevice()
 
 
 
-bool KSVulkan::createSurface()
+bool KSVulkan::createSurface(void *window)
 {
-    return true;
+  // if(glfwCreate)
+    return false;
 }
 
 
@@ -319,6 +391,7 @@ void KSVulkan::release()
     }
 
     vkDestroyDevice(vkDevice, nullptr);
+    vkDestroySurfaceKHR(vkInstance, vkSurface, nullptr);
     vkDestroyInstance(vkInstance, nullptr);
 }
 
@@ -354,6 +427,11 @@ bool KSVulkan::checkValidationSupport()
     return true;
 }
 
+bool KSVulkan::createSwapChain()
+{
+
+    return true;
+}
 
 //Load debugger extension function from vulkan lib as this is extension function
 VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger) {
@@ -384,3 +462,61 @@ void KSVulkan::setupDebugMessenger()
     }
 
 }
+
+SwapChainInfo KSVulkan::getSwapChainInfo(VkPhysicalDevice device)
+{
+    SwapChainInfo swapChainInfo;
+
+    //check below func variants
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device,vkSurface,&swapChainInfo.capabilities);
+
+    uint32_t formatCount;
+    vkGetPhysicalDeviceSurfaceFormatsKHR(device, vkSurface, &formatCount, nullptr);
+
+    if (formatCount != 0)
+    {
+        swapChainInfo.formats.resize(formatCount);
+        vkGetPhysicalDeviceSurfaceFormatsKHR(device, vkSurface, &formatCount, swapChainInfo.formats.data());
+    }
+
+    uint32_t presentModeCount;
+    vkGetPhysicalDeviceSurfacePresentModesKHR(device, vkSurface, &presentModeCount, nullptr);
+
+    if (presentModeCount != 0)
+    {
+        swapChainInfo.presentModes.resize(presentModeCount);
+        vkGetPhysicalDeviceSurfacePresentModesKHR(device, vkSurface, &presentModeCount, swapChainInfo.presentModes.data());
+    }
+
+    return swapChainInfo;
+}
+
+VkSurfaceFormatKHR KSVulkan::surfaceChooseSwapFormat(const std::vector<VkSurfaceFormatKHR> &availableFormats)
+{
+    //select required format if not available use first but check based on required later
+    for(auto &fmt : availableFormats)
+    {
+        if(fmt.format == VK_FORMAT_B8G8R8A8_SRGB && fmt.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
+            return fmt;
+    }
+
+    return availableFormats[0];
+}
+
+VkPresentModeKHR KSVulkan::chooseSwapPresentMode(const std::vector<VkPresentModeKHR> &availablePresentModes) {
+   // return VK_PRESENT_MODE_MAILBOX_KHR;//TODO this is better?
+    for (const auto& availablePresentMode : availablePresentModes)
+    {
+        if (availablePresentMode == VK_PRESENT_MODE_MAILBOX_KHR) {
+            return availablePresentMode;
+        }
+    }
+    return VK_PRESENT_MODE_FIFO_KHR;
+}
+
+VkExtent2D KSVulkan::chooseSwapExtent(const VkSurfaceCapabilitiesKHR &capabilities) {
+    //The swap extent is the resolution of the swap chain images and it's almost always exactly equal to the resolution of the window that we're drawing to in pixels (
+    return VkExtent2D();
+}
+
+

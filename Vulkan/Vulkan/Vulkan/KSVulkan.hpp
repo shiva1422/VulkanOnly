@@ -10,6 +10,8 @@
 
 #include <stdio.h>
 #include "vulkan/vulkan.h"
+#include "vector"
+#include "KSWindow.h"
 
 /*
  TODO : Check Vulkan Supported
@@ -32,6 +34,18 @@ private:
     friend class KSVulkan;
     //TODO 0 indicates a valid queue value so its not good to decide if its valid number try set to max of use std::optional  c++17
     uint32_t graphicsFamily;
+    uint32_t presentFamily;
+};
+
+class SwapChainInfo{
+public:
+
+    //min/max number of images in swapchain ,and width and height of images
+    VkSurfaceCapabilitiesKHR capabilities;
+    //pixel format, color space
+    std::vector<VkSurfaceFormatKHR> formats;
+
+    std::vector<VkPresentModeKHR> presentModes;
 };
 
 class KSVulkan{
@@ -48,25 +62,47 @@ private:
 
     bool createInstance();
 
+    //TODO
+    bool createSurface(void *window);
     //TODO Check previous android code
     bool findGFXFamilyQueues(VkPhysicalDevice device);
 
+    bool checkDeviceExtensionSupport(VkPhysicalDevice device);
+
     bool isDeviceSuitable(VkPhysicalDevice device);
 
-    bool selectDevice();
+    bool selectPhysicalDevice();
 
     bool createLogicalDevice();
 
-    bool createSurface();
+    bool createSwapChain();
 
-
-
-
-
-     bool checkValidationSupport();
+    bool checkValidationSupport();
     
-     void setupDebugMessenger();
+    void setupDebugMessenger();
+
+    SwapChainInfo getSwapChainInfo(VkPhysicalDevice device);
+
+    VkSurfaceFormatKHR surfaceChooseSwapFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
+
+    VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
+
+    VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities) ;
+
+
+
+    VkSurfaceKHR& getVKSurface(){return vkSurface;}
+     friend class KSVulkanApplication;
+
+    void setWindowInterface(KSWindowVKInterface *interface)
+    {
+        this->vkSurfaceCreator = interface;
+    }
+
+
 private:
+
+
     
      bool bInit = false;
     
@@ -77,16 +113,23 @@ private:
      VkPhysicalDevice vkGpu = VK_NULL_HANDLE;
      VkDevice vkDevice = VK_NULL_HANDLE;
      VkQueue graphicsQueue;
-     VkSurfaceKHR vkSurface;
+     VkQueue presentQueue;
      QueueFamilyIndices indices;
 
      //TODO createLogicalDevice
      VkPhysicalDeviceFeatures deviceFeatures{};
 
 
+     //The window surface needs to be created right after the instance creation, because it can actually influence the physical device selection
+     VkSurfaceKHR vkSurface;
+
+
     //debug
     VkDebugUtilsMessengerEXT debugMessenger;
 
+
+    //
+    KSWindowVKInterface *vkSurfaceCreator  = nullptr;
     
 #ifdef NDEBUG
     const bool enableValidationLayers = false;

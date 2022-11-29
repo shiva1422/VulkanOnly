@@ -23,7 +23,7 @@
 
 KSVulkanApplication::KSVulkanApplication()
 {
-    
+    vulkan.setWindowInterface(this);
 }
 
 KSVulkanApplication::~KSVulkanApplication()
@@ -36,6 +36,7 @@ void KSVulkanApplication::run()
 {
     onWindowInit();
     vulkanInit();
+    assert(createVKSurface());
 
     while (!glfwWindowShouldClose(window))
     {
@@ -66,4 +67,15 @@ void KSVulkanApplication::onDestroy()
 {
     glfwDestroyWindow(window);
     glfwTerminate();
+}
+
+bool KSVulkanApplication::createVKSurface()
+{
+    //TOOD move to KSVulkan and create surface like any other vk creation with platform specifs
+    if(glfwCreateWindowSurface(vulkan.vkInstance,window, nullptr,&vulkan.vkSurface) != VK_SUCCESS)
+    {
+        Logger::error(LOGTAG,"couldn't create VKSurface");
+        return false;
+    }
+    return true;
 }
