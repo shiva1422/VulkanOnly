@@ -77,9 +77,16 @@ private:
 
     bool createSwapChain();
 
+    bool createImageViews();
+
+    bool  createRenderPass();
+
+    bool createGraphicsPipeline();
+
     bool checkValidationSupport();
     
     void setupDebugMessenger();
+
 
     SwapChainInfo getSwapChainInfo(VkPhysicalDevice device);
 
@@ -116,12 +123,35 @@ private:
      VkQueue presentQueue;
      QueueFamilyIndices indices;
 
+
+
      //TODO createLogicalDevice
      VkPhysicalDeviceFeatures deviceFeatures{};
 
 
      //The window surface needs to be created right after the instance creation, because it can actually influence the physical device selection
      VkSurfaceKHR vkSurface;
+
+     VkSwapchainKHR vkSwapChain;
+
+    std::vector<VkImage> swapChainImages;
+
+    std::vector<VkImageView> swapChainImageViews;
+
+    VkFormat swapChainImageFormat;
+
+    VkExtent2D swapChainExtent;
+
+    VkRenderPass renderPass;
+
+    VkPipelineLayout pipelineLayout;
+
+    VkPipeline graphicsPipeline;
+
+
+
+
+
 
 
     //debug
@@ -136,8 +166,9 @@ private:
 #else
     const bool enableValidationLayers = true;
 #endif
-    
-    
+
+
+    VkShaderModule createShaderModule(const std::vector<char> &code);
 };
 
 

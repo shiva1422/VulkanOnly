@@ -26,5 +26,6 @@ class KSWindowVKInterface
 {
 public:
   virtual bool createVKSurface() = 0;
+  virtual void getFrameBufferSize(int &width,int &height) = 0;
 };
 #endif //VULKANMAIN_KSWINDOW_H

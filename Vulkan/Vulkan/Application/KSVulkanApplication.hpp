@@ -24,7 +24,8 @@ public:
     KSVulkanApplication();
     
     virtual ~KSVulkanApplication();
-    
+
+
     void run() override;
     
     void onWindowInit() override;
@@ -37,7 +38,10 @@ private:
     bool vulkanInit();
 
     bool createVKSurface();//TODO move to KSVulkan
-    
+
+    void getFrameBufferSize(int &width, int &height) override;
+
+
 private:
     KSVulkan vulkan;
     GLFWwindow* window = nullptr;

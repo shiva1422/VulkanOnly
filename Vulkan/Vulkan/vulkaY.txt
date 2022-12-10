@@ -10,3 +10,9 @@ The currently available drivers will only allow you to create a small number of 
 
 for queuefamilies
  you could add logic to explicitly prefer a physical device that supports drawing and presentation in the same queue for improved performance.
+
+
+
+ //TODO
+
+ If you are only interested in depth values then you can disable the fragment shader stage, which is useful for shadow map generation.

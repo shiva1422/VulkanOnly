@@ -10,5 +10,6 @@ include_directories(${VULKAN_DIR}/include)
 add_subdirectory(./Vulkan ./ksvulkan)
 add_subdirectory(./Application ./ksvulkanapp)
 
-add_executable(vulkanmain main.cpp)
+add_executable(vulkanmain main.cpp Shaders/ShaderManager.h UI/Triangle.cpp UI/Triangle.h Shaders/ShaderManager.cpp)
+
 target_link_libraries(vulkanmain ksvulkan ksvulkanapp)

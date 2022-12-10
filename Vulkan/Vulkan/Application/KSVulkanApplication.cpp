@@ -79,3 +79,8 @@ bool KSVulkanApplication::createVKSurface()
     }
     return true;
 }
+
+void KSVulkanApplication::getFrameBufferSize(int &width, int &height) {
+    //get pixels size from screen coordinates dp
+    glfwGetFramebufferSize(window,&width, &height);
+}
