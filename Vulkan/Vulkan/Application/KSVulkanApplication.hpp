@@ -41,6 +41,12 @@ private:
 
     void getFrameBufferSize(int &width, int &height) override;
 
+private:
+
+    void onDraw();//Later transfer to Renderer
+    void drawVulkan();
+
+
 
 private:
     KSVulkan vulkan;

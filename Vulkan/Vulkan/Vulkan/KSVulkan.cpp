@@ -68,10 +68,13 @@ bool KSVulkan::configure()
     // The window surface needs to be created right after the instance creation, because it can actually influence the physical device selection
     assert(vkSurfaceCreator != nullptr);
     vkSurfaceCreator->createVKSurface();//TODO refact
-    res = res && selectPhysicalDevice() && createLogicalDevice() && createSwapChain() && createImageViews() && createRenderPass() && createGraphicsPipeline();
+    res = res && selectPhysicalDevice() && createLogicalDevice() && createSwapChain() && createImageViews() && createRenderPass() && createGraphicsPipeline() && createFrameBuffers();
+    res = res && createCommandPool() && createCommandBuffer() && createSyncObjects();
     assert(res);
     return res;
 }
+
+
 
 bool KSVulkan::createInstance()
 {
@@ -87,7 +90,7 @@ bool KSVulkan::createInstance()
                                     .applicationVersion=VK_MAKE_VERSION(1,0,0),
                                     .pEngineName="KSVulkanEngine",
                                     .engineVersion=VK_MAKE_VERSION(1,0,0),
-                                    .apiVersion=VK_MAKE_VERSION(1,1,0),
+                                    .apiVersion=VK_API_VERSION_1_0,//HDiff
                                     };//TODO check update later
     
     //check and print extensions //TODO Debug Only
@@ -115,7 +118,15 @@ bool KSVulkan::createInstance()
     
     //Mac incompatiblility err
     instanceExt.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
+    instanceExt.push_back("VK_KHR_get_physical_device_properties2");
     //instanceExt.push_back();
+
+    //HDiff all extenstions
+
+    for(auto ext : instanceExt)
+    {
+        Logger::debug("NWCO", "instance Extension %s",ext);
+    }
     
     /*GLFW
     uint32_t glfwExtensionCount = 0;
@@ -148,6 +159,7 @@ bool KSVulkan::createInstance()
         instanceCreateInfo.enabledLayerCount = 0;
     }
 
+    //HDiff debugMessenger here
        VkResult res ;
     
        if((res = vkCreateInstance(&instanceCreateInfo,nullptr,&vkInstance) )!= VK_SUCCESS)
@@ -176,6 +188,8 @@ bool KSVulkan::checkDeviceExtensionSupport(VkPhysicalDevice device)
         requiredExtensions.erase(extension.extensionName);
     }
 
+    assert(requiredExtensions.empty());
+
     return requiredExtensions.empty();
 }
 
@@ -183,10 +197,13 @@ bool KSVulkan::isDeviceSuitable(VkPhysicalDevice device)
 {
     //To evaluate the suitability of a device we can start by querying for some details. Basic device properties like the name, type //and supported Vulkan version can be queried using vkGetPhysicalDeviceProperties.
     
-   // VkPhysicalDeviceProperties deviceProperties;
-   // vkGetPhysicalDeviceProperties(device, &deviceProperties);
+    VkPhysicalDeviceProperties deviceProperties;
+    //VkPhysicalDeviceFeatures deviceFeatures;
+    vkGetPhysicalDeviceProperties(device, &deviceProperties);
 //    vkGetPhysicalDeviceProperties(device, &deviceProperties);
-//    vkGetPhysicalDeviceFeatures(device, &deviceFeatures);
+     vkGetPhysicalDeviceFeatures(device, &deviceFeatures);
+     //TODO
+    // Logger::info(LOGTAG,"",deviceFeatures.)
 
 //    return deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU &&
 //           deviceFeatures.geometryShader;/
@@ -206,6 +223,7 @@ bool KSVulkan::isDeviceSuitable(VkPhysicalDevice device)
     }
 
 
+    Logger::debug(LOGTAG,"device Suitable %d",res);
     return res;
     ;
     //The support for optional features like texture compression, 64 bit floats and multi viewport rendering (useful for VR) can be queried using vkGetPhysicalDeviceFeatures:
@@ -226,6 +244,8 @@ bool KSVulkan::selectPhysicalDevice()
     }
     std::vector<VkPhysicalDevice> devices(deviceCount);
     vkEnumeratePhysicalDevices(vkInstance, &deviceCount, devices.data());
+
+    Logger::info(LOGTAG,"physical device Count %u",deviceCount);
     
     for (const auto& device : devices)
     {
@@ -293,6 +313,7 @@ bool KSVulkan::findGFXFamilyQueues(VkPhysicalDevice device)
             break;
     }
 
+    Logger::info(LOGTAG,"graphicFam index %u presentFam index %u",indices.graphicsFamily,indices.presentFamily);
     found = bGraphicsFam && bPresentFam;//all required families are found
     return found;
 }
@@ -327,13 +348,15 @@ bool KSVulkan::createLogicalDevice()
     }
 
 
+    VkPhysicalDeviceFeatures deviceFeats{};//TODO should be queried?
+
     //Logical Device Creation
     VkDeviceCreateInfo deviceCreateInfo{};
     deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
     deviceCreateInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
     deviceCreateInfo.pQueueCreateInfos = queueCreateInfos.data();
 
-    deviceCreateInfo.pEnabledFeatures = &deviceFeatures;//TODO before creating
+    deviceCreateInfo.pEnabledFeatures = &deviceFeats;//TODO before creating , HDIFF
 
     //device extensions
     deviceCreateInfo.enabledExtensionCount = 1;
@@ -390,6 +413,15 @@ bool KSVulkan::createSurface(void *window)
 
 void KSVulkan::release()
 {
+
+    vkDestroySemaphore(vkDevice, imageAvailableSemaphore, nullptr);
+    vkDestroySemaphore(vkDevice, renderFinishedSemaphore, nullptr);
+    vkDestroyFence(vkDevice, inFlightFence, nullptr);
+
+    vkDestroyCommandPool(vkDevice, commandPool, nullptr);
+    for (auto framebuffer : swapChainFramebuffers) {
+        vkDestroyFramebuffer(vkDevice, framebuffer, nullptr);
+    }
 
     vkDestroyPipeline(vkDevice, graphicsPipeline, nullptr);
 
@@ -485,8 +517,8 @@ bool KSVulkan::createSwapChain()
    {
        //Images can be used across multiple queue families without explicit ownership transfers.
        swapChainCreateInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-       swapChainCreateInfo.queueFamilyIndexCount = 0; // Optional
-       swapChainCreateInfo.pQueueFamilyIndices = nullptr; // Optional
+       //swapChainCreateInfo.queueFamilyIndexCount = 0; // Optional HDIFF
+      // swapChainCreateInfo.pQueueFamilyIndices = nullptr; // Optional
    }
 
    //any tranform like 90 degrees
@@ -498,6 +530,8 @@ bool KSVulkan::createSwapChain()
 
     swapChainCreateInfo.presentMode = presentMode;
     swapChainCreateInfo.clipped = VK_TRUE;//clipping enabled
+
+    //swapChainCreateInfo.flags = 0;//TODO
 
     //when window resized or other swapchain needs recreated specifying old one for now null
     swapChainCreateInfo.oldSwapchain = VK_NULL_HANDLE;
@@ -578,6 +612,8 @@ SwapChainInfo KSVulkan::getSwapChainInfo(VkPhysicalDevice device)
         vkGetPhysicalDeviceSurfacePresentModesKHR(device, vkSurface, &presentModeCount, swapChainInfo.presentModes.data());
     }
 
+    Logger::verbose(LOGTAG,"Surface %u presentMode %u formats",presentModeCount,formatCount);
+    assert(presentModeCount != 0 || formatCount != 0);
     return swapChainInfo;
 }
 
@@ -611,12 +647,14 @@ VkExtent2D KSVulkan::chooseSwapExtent(const VkSurfaceCapabilitiesKHR &capabiliti
 
     if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max())
     {
+        Logger::debug(LOGTAG,"frameBuffer -SC size w-%u h-%u",capabilities.currentExtent.width,capabilities.currentExtent.height);
         return capabilities.currentExtent;
     }
     else
     {
         int width,height;
         vkSurfaceCreator->getFrameBufferSize(width,height);
+        Logger::debug(LOGTAG,"frameBuffer size w-%u h-%u",width,height);
         VkExtent2D actualExtent = {
                 static_cast<uint32_t>(width),
                 static_cast<uint32_t>(height)
@@ -645,7 +683,7 @@ bool KSVulkan::createImageViews()
 
     for(int i = 0;i< swapChainImages.size() ; ++i)
     {
-        VkImageViewCreateInfo createInfo;
+        VkImageViewCreateInfo createInfo{};
         createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
         createInfo.image = swapChainImages[i];
 
@@ -666,7 +704,8 @@ bool KSVulkan::createImageViews()
         createInfo.subresourceRange.layerCount = 1;
 
         createInfo.pNext = nullptr;
-       //TODO createInfo.flags =
+       //TODO createInfo.flags =0
+      // createInfo.flags = 0;
 
        if( vkCreateImageView(vkDevice,&createInfo, nullptr,&swapChainImageViews[i]) != VK_SUCCESS)
            return false;
@@ -729,9 +768,9 @@ bool KSVulkan::createGraphicsPipeline()
     VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
     vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
     vertexInputInfo.vertexBindingDescriptionCount = 0;
-    vertexInputInfo.pVertexBindingDescriptions = nullptr; // Optional
+    //vertexInputInfo.pVertexBindingDescriptions = nullptr; // Optional
     vertexInputInfo.vertexAttributeDescriptionCount = 0;
-    vertexInputInfo.pVertexAttributeDescriptions = nullptr;
+   // vertexInputInfo.pVertexAttributeDescriptions = nullptr;
 
 
     //Input Assembly
@@ -749,6 +788,8 @@ bool KSVulkan::createGraphicsPipeline()
     inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
     inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
     inputAssembly.primitiveRestartEnable = VK_FALSE;
+
+
 
     //ViewPort and Scissors WTF? sciss can be set as static part of pipeline or dynamic state in command buffer
     VkViewport viewport{};//FrameBuffer size which will be swapChain Images
@@ -772,20 +813,7 @@ bool KSVulkan::createGraphicsPipeline()
     * then you'll have to fill in a VkPipelineDynamicStateCreateInfo structure like this:
     */
 
-    /*
-    * This will cause the configuration of these values to be ignored and you will be able (and required)
-    * to specify the data at drawing time
-    */
 
-    std::vector<VkDynamicState> dynamicStates = {
-            VK_DYNAMIC_STATE_VIEWPORT,
-            VK_DYNAMIC_STATE_SCISSOR
-    };
-
-    VkPipelineDynamicStateCreateInfo dynamicState{};
-    dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-    dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
-    dynamicState.pDynamicStates = dynamicStates.data();
 
 
 
@@ -794,9 +822,9 @@ bool KSVulkan::createGraphicsPipeline()
     VkPipelineViewportStateCreateInfo viewportState{};
     viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
     viewportState.viewportCount = 1;
-    viewportState.pViewports = &viewport;
+   // viewportState.pViewports = &viewport;//TODO as dynamice HDIFF
     viewportState.scissorCount = 1;
-    viewportState.pScissors = &scissor;
+   // viewportState.pScissors = &scissor;
 
 
 
@@ -817,9 +845,9 @@ bool KSVulkan::createGraphicsPipeline()
     rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
     rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
     rasterizer.depthBiasEnable = VK_FALSE;
-    rasterizer.depthBiasConstantFactor = 0.0f; // Optional
-    rasterizer.depthBiasClamp = 0.0f; // Optional
-    rasterizer.depthBiasSlopeFactor = 0.0f; // Optional
+   // rasterizer.depthBiasConstantFactor = 0.0f; // Optional
+    //rasterizer.depthBiasClamp = 0.0f; // Optional
+    //rasterizer.depthBiasSlopeFactor = 0.0f; // Optional
 
     /*
      * If depthClampEnable is set to VK_TRUE, then fragments that are beyond the near and far planes are clamped to them as opposed to discarding them.
@@ -835,10 +863,10 @@ bool KSVulkan::createGraphicsPipeline()
     multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
     multisampling.sampleShadingEnable = VK_FALSE;
     multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
-    multisampling.minSampleShading = 1.0f; // Optional
-    multisampling.pSampleMask = nullptr; // Optional
-    multisampling.alphaToCoverageEnable = VK_FALSE; // Optional
-    multisampling.alphaToOneEnable = VK_FALSE; // Optional
+    //multisampling.minSampleShading = 1.0f; // Optional
+    //multisampling.pSampleMask = nullptr; // Optional
+   // multisampling.alphaToCoverageEnable = VK_FALSE; // Optional
+   // multisampling.alphaToOneEnable = VK_FALSE; // Optional
 
 
     //Depth and stencil testing TODO
@@ -852,13 +880,13 @@ bool KSVulkan::createGraphicsPipeline()
 
     VkPipelineColorBlendAttachmentState colorBlendAttachment{};
     colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-    colorBlendAttachment.blendEnable = VK_TRUE;
-    colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+    colorBlendAttachment.blendEnable = VK_FALSE;//TODO HDIFF use below for VK_TRUE
+   /* colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
     colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
     colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
     colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
     colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-    colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
+    colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;*/
 
     /*
      * The second structure references the array of structures for all of the framebuffers and allows you
@@ -876,8 +904,24 @@ bool KSVulkan::createGraphicsPipeline()
     colorBlending.blendConstants[3] = 0.0f; // Optiona
 
 
+    /*
+   * This will cause the configuration of these values to be ignored and you will be able (and required)
+   * to specify the data at drawing time
+   */
 
-   // The uniform values need to be specified during pipeline creation by creating a VkPipelineLayout object and can be modified
+
+    std::vector<VkDynamicState> dynamicStates = {
+            VK_DYNAMIC_STATE_VIEWPORT,
+            VK_DYNAMIC_STATE_SCISSOR
+    };
+
+    VkPipelineDynamicStateCreateInfo dynamicState{};
+    dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+    dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
+    dynamicState.pDynamicStates = dynamicStates.data();
+
+
+    // The uniform values need to be specified during pipeline creation by creating a VkPipelineLayout object and can be modified
    //without pipeline recreation .The structure also specifies push constants, which are another way of passing dynamic values to shaders
     //Pipeline Layout
 
@@ -934,7 +978,7 @@ bool KSVulkan::createGraphicsPipeline()
 
     //Vulkan allows you to create a new graphics pipeline by deriving from an existing pipeline.
     pipelineInfo.basePipelineHandle = VK_NULL_HANDLE; // Optional
-    pipelineInfo.basePipelineIndex = -1; //
+   // pipelineInfo.basePipelineIndex = -1; //
 
     if (vkCreateGraphicsPipelines(vkDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &graphicsPipeline) != VK_SUCCESS)
     {
@@ -949,7 +993,9 @@ bool KSVulkan::createGraphicsPipeline()
      */
 
     //TODO
-    // vkDestroyShaderModule(vkDevice, fragShaderModule, nullptr);
+     vkDestroyShaderModule(vkDevice, fragShaderModule, nullptr);
+     vkDestroyShaderModule(vkDevice, vertShaderModule, nullptr);
+
 
 
 
@@ -1021,7 +1067,9 @@ bool KSVulkan::createRenderPass()
     pPreserveAttachments: Attachments that are not used by this subpass, but for which the data must be preserved
      */
 
+
   //With the above info renderpass can be created
+
 
   VkRenderPassCreateInfo renderPassInfo{};
 
@@ -1031,11 +1079,306 @@ bool KSVulkan::createRenderPass()
     renderPassInfo.subpassCount = 1;
     renderPassInfo.pSubpasses = &subpass;
 
+    //Rendering and presentation subpass dependency
+    VkSubpassDependency dependency{};
+    dependency.srcSubpass = VK_SUBPASS_EXTERNAL;//refers to the implicit subpass before or after the render pass depending on whether it is specified in srcSubpass or dstSubpass
+    dependency.dstSubpass = 0;//The index 0 refers to our subpass, which is the first and only one,dst shoud alway be higher than src unces it is EXTERNAL in aboveline
+
+    dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dependency.srcAccessMask = 0;
+
+    //wait on swapchain to finish  read from image
+    dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
+    renderPassInfo.dependencyCount = 1;
+    renderPassInfo.pDependencies = &dependency;
+
+
     if (vkCreateRenderPass(vkDevice, &renderPassInfo, nullptr, &renderPass) != VK_SUCCESS)
     {
         Logger::error(LOGTAG,"failed to create render pass!");
         return false;
     }
+
+
+
+
+    return true;
+}
+
+bool KSVulkan::createFrameBuffers()
+{
+
+    /*
+   * The attachments specified during render pass creation are bound by wrapping them into a VkFramebuffer object. A framebuffer object references all of the VkImageView objects that represent the attachments
+   * That means framebuffers should be created for each image in swapchain and use one that corresponds to a retrived image from swap chain during drawing
+   */
+    swapChainFramebuffers.resize(swapChainImageViews.size());
+
+    for(int i =0; i <swapChainImageViews.size();++i)
+    {
+        VkImageView attachments[] = {swapChainImageViews[i]};
+
+        VkFramebufferCreateInfo framebufferInfo{};
+        framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        framebufferInfo.renderPass = renderPass;//with which renderpass framebuffer will be used
+        framebufferInfo.attachmentCount = 1;//just like gl drawBuffers
+        framebufferInfo.pAttachments = attachments;
+        framebufferInfo.width = swapChainExtent.width;
+        framebufferInfo.height = swapChainExtent.height;
+        framebufferInfo.layers = 1;
+
+        if (vkCreateFramebuffer(vkDevice, &framebufferInfo, nullptr, &swapChainFramebuffers[i]) != VK_SUCCESS)
+        {
+            Logger::error(LOGTAG,"createFrameBuffer failed");
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool KSVulkan::createCommandPool()
+{
+    /*
+     * Commands in Vulkan, like drawing operations and memory transfers, are not executed directly using function calls.
+     * You have to record all of the operations you want to perform in command buffer objects.
+     * The advantage of this is that when we are ready to tell the Vulkan what we want to do, all of the commands are submitted
+     * together and Vulkan can more efficiently process the commands since all of them are available together.
+     * In addition, this allows command recording to happen in multiple threads if so desired
+     */
+
+    //QueFamilyIndices queueFamilyIndices = findQueueFamilies(physicalDevice);//called once but values have to validated
+    VkCommandPoolCreateInfo poolInfo{};
+    poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    /*
+     * VK_COMMAND_POOL_CREATE_TRANSIENT_BIT: Hint that command buffers are rerecorded with new commands very often (may change memory allocation behavior)
+       VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT: Allow command buffers to be rerecorded individually, without this flag they all have to be reset together
+     */
+    poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+    Logger::debug("CreateCommandPool","queFamIndex %u",indices.graphicsFamily);
+
+    poolInfo.queueFamilyIndex = indices.graphicsFamily;//this value should be inited properly should not be default contructed;
+
+    //Command buffers are executed by submitting them on one of the device queues, like the graphics and presentation.here graphics
+    if (vkCreateCommandPool(vkDevice, &poolInfo, nullptr, &commandPool) != VK_SUCCESS) {
+       Logger::error(LOGTAG,"error creating commandpool");
+       return false;
+    }
+    return true;
+}
+
+bool KSVulkan::createCommandBuffer()
+{
+    /*
+     *
+     */
+
+    VkCommandBufferAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocInfo.commandPool = commandPool;
+    /*
+     * VK_COMMAND_BUFFER_LEVEL_PRIMARY: Can be submitted to a queue for execution, but cannot be called from other command buffers.
+      VK_COMMAND_BUFFER_LEVEL_SECONDARY: Cannot be submitted directly, but can be called from primary command buffers.
+     */
+    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocInfo.commandBufferCount = 1;
+
+    //commandBufferAutomatically release with commandPool
+    if (vkAllocateCommandBuffers(vkDevice, &allocInfo, &commandBuffer) != VK_SUCCESS) {
+        Logger::error(LOGTAG,"error createCommandBuffer");
+        return false;
+    }
+
+    return true;
+}
+
+
+bool KSVulkan::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex)
+{
+/*
+ * We always begin recording a command buffer by calling vkBeginCommandBuffer with a small VkCommandBufferBeginInfo structure as argument that specifies
+ * some details about the usage of this specific command buffer.
+ */
+
+    VkCommandBufferBeginInfo beginInfo{};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+
+    /*
+     * VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT: The command buffer will be rerecorded right after executing it once.
+        VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT: This is a secondary command buffer that will be entirely within a single render pass.
+        VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT: The command buffer can be resubmitted while it is also already pending execution.
+     */
+   // beginInfo.flags = 0; // Optional
+   // beginInfo.pInheritanceInfo = nullptr; // Optional
+
+    /*
+     * The pInheritanceInfo parameter is only relevant for secondary command buffers. It specifies which state to inherit from the calling primary command buffers.
+    If the command buffer was already recorded once, then a call to vkBeginCommandBuffer will implicitly reset it. It's not possible to append commands to a buffer at a later time.
+     */
+    if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS) {
+
+        Logger::error(LOGTAG,"BeginCommandBuffer Error");
+        return false;
+    }
+
+    //Start rendering
+
+  //begin render pass with begin info
+    VkRenderPassBeginInfo renderPassInfo{};
+    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    renderPassInfo.renderPass = renderPass;
+    renderPassInfo.framebuffer = swapChainFramebuffers[imageIndex];
+
+    renderPassInfo.renderArea.offset = {0, 0};
+    renderPassInfo.renderArea.extent = swapChainExtent;
+
+
+    VkClearValue clearColor = {{{1.0f, 1.0f, 0.0f, 1.0f}}};
+    renderPassInfo.clearValueCount = 1;
+    renderPassInfo.pClearValues = &clearColor;//VK_ATTACHMENT_LOAD_OP_CLEAR load op for color attachment before
+
+    //commands begin all commands return void so no error handling until recording is done ,which command buffer to use is the first command
+    /*
+     * VK_SUBPASS_CONTENTS_INLINE: The render pass commands will be embedded in the primary command buffer itself and no secondary command buffers will be executed.
+      VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS: The render pass commands will be executed from secondary command buffers.
+     */
+    vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+
+    //Basic drawing commands
+    //bind graphics pipelin
+    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+
+    //as we set viewport and scissors as dynamic for pipeline before
+    VkViewport viewport{};
+    viewport.x = 0.0f;
+    viewport.y = 0.0f;
+    viewport.width = static_cast<float>(swapChainExtent.width);
+    viewport.height = static_cast<float>(swapChainExtent.height);
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+    vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+
+    VkRect2D scissor{};
+    scissor.offset = {0, 0};
+    scissor.extent = swapChainExtent;
+    vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+
+    //draw command triangle
+   //haha not so simple as vetices  are specified in shader looks simple for now
+    vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+
+    vkCmdEndRenderPass(commandBuffer);
+
+    if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
+        Logger::error(LOGTAG,"endcommandbuffer");
+        return false;
+    }
+}
+
+void KSVulkan::drawFrame()
+{
+    /*General Rendering ,all operation that exectue work on gpu are asynchronous so return immediately we need synchronize explicitly
+    * Wait for the previous frame to finish
+   Acquire an image from the swap chain
+   Record a command buffer which draws the scene onto that image
+   Submit the recorded command buffer
+   Present the swap chain image,return image to swapchain
+   */
+
+    //can wait on multiple fences,This might block for first frame so fences shoould have been inited in signalled state
+    vkWaitForFences(vkDevice, 1, &inFlightFence, VK_TRUE, UINT64_MAX);
+
+    //fences should be reset to unsignalled state explicly after waiting
+    vkResetFences(vkDevice, 1, &inFlightFence);
+
+    //aquire swap chain image to draw into
+
+    uint32_t imageIndex;
+    //as swapchain is extension KHR aslo check variants version 2
+    vkAcquireNextImageKHR(vkDevice,vkSwapChain,UINT64_MAX,imageAvailableSemaphore,VK_NULL_HANDLE,&imageIndex);
+    //vkAcquireNextImage2KHR(vkDevice,)
+
+
+    //record command buffer
+    vkResetCommandBuffer(commandBuffer,0);
+    recordCommandBuffer(commandBuffer,imageIndex);
+
+    //after fully record commandbuffer submit it .
+    VkSubmitInfo submitInfo{};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+
+    VkSemaphore waitSemaphores[] = {imageAvailableSemaphore};
+    VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+    submitInfo.waitSemaphoreCount = 1;
+    submitInfo.pWaitSemaphores = waitSemaphores;
+    submitInfo.pWaitDstStageMask = waitStages;
+
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &commandBuffer;
+
+    VkSemaphore signalSemaphores[] = {renderFinishedSemaphore};
+
+    /*
+     * The signalSemaphoreCount and pSignalSemaphores parameters specify which semaphores to signal once the command buffer(s) have finished execution
+     */
+    submitInfo.signalSemaphoreCount = 1;
+    submitInfo.pSignalSemaphores = signalSemaphores;
+
+    //next draw call wait on cpu for inFlightFence to reuse command buffer afte it is finished executing
+    if(vkQueueSubmit(graphicsQueue,1,&submitInfo,inFlightFence) != VK_SUCCESS)
+    {
+        Logger::error(LOGTAG,"error QueueSubmit on draw");
+        assert(false);
+    }
+
+    //submit result back to swapchain to preset
+
+    VkPresentInfoKHR presentInfo{};
+    presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+
+    presentInfo.waitSemaphoreCount = 1;
+    presentInfo.pWaitSemaphores = signalSemaphores;//wiat on command buffer exec
+
+    VkSwapchainKHR swapChains[] = {vkSwapChain};
+    presentInfo.swapchainCount = 1;
+    presentInfo.pSwapchains = swapChains;
+    presentInfo.pImageIndices = &imageIndex;
+    presentInfo.pResults = nullptr; // Optional
+
+   if( vkQueuePresentKHR(presentQueue, &presentInfo) != VK_SUCCESS)
+   {
+       Logger::error(LOGTAG,"vulkan drawframe error");
+       assert(false);
+   }
+
+   //Logger::debug(LOGTAG,"onDraw complete");
+
+
+
+}
+
+bool KSVulkan::createSyncObjects()
+{
+    VkSemaphoreCreateInfo semaphoreInfo{};
+    semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
+    VkFenceCreateInfo fenceInfo{};
+    fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+
+    if (vkCreateSemaphore(vkDevice, &semaphoreInfo, nullptr, &imageAvailableSemaphore) != VK_SUCCESS ||
+        vkCreateSemaphore(vkDevice, &semaphoreInfo, nullptr, &renderFinishedSemaphore) != VK_SUCCESS ||
+        vkCreateFence(vkDevice, &fenceInfo, nullptr, &inFlightFence) != VK_SUCCESS) {
+
+        Logger::error(LOGTAG,"createSyncObject Failed");
+        return false;
+    }
+
+
+
     return true;
 }
 

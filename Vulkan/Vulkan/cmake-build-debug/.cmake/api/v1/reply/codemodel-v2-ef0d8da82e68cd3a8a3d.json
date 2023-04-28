@@ -1,0 +1,138 @@
+{
+	"configurations" : 
+	[
+		{
+			"directories" : 
+			[
+				{
+					"build" : ".",
+					"childIndexes" : 
+					[
+						1,
+						2
+					],
+					"jsonFile" : "directory-.-Debug-f5ebdc15457944623624.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.4.1"
+					},
+					"projectIndex" : 0,
+					"source" : ".",
+					"targetIndexes" : 
+					[
+						2
+					]
+				},
+				{
+					"build" : "ksvulkan",
+					"jsonFile" : "directory-ksvulkan-Debug-ed215fd67f250bdb3a59.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.4.1"
+					},
+					"parentIndex" : 0,
+					"projectIndex" : 1,
+					"source" : "Vulkan",
+					"targetIndexes" : 
+					[
+						0
+					]
+				},
+				{
+					"build" : "ksvulkanapp",
+					"jsonFile" : "directory-ksvulkanapp-Debug-ae0ceada756db802ba09.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.4.1"
+					},
+					"parentIndex" : 0,
+					"projectIndex" : 2,
+					"source" : "Application",
+					"targetIndexes" : 
+					[
+						1
+					]
+				}
+			],
+			"name" : "Debug",
+			"projects" : 
+			[
+				{
+					"childIndexes" : 
+					[
+						1,
+						2
+					],
+					"directoryIndexes" : 
+					[
+						0
+					],
+					"name" : "vulkanmain",
+					"targetIndexes" : 
+					[
+						2
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						1
+					],
+					"name" : "vulkanlib",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						0
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						2
+					],
+					"name" : "Vulkanapp",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						1
+					]
+				}
+			],
+			"targets" : 
+			[
+				{
+					"directoryIndex" : 1,
+					"id" : "ksvulkan::@bfbaad0936ad75bf4ac2",
+					"jsonFile" : "target-ksvulkan-Debug-ac991633a4a77e2fdcc3.json",
+					"name" : "ksvulkan",
+					"projectIndex" : 1
+				},
+				{
+					"directoryIndex" : 2,
+					"id" : "ksvulkanapp::@f41989def353c89be19d",
+					"jsonFile" : "target-ksvulkanapp-Debug-07f2b919cb83badc8813.json",
+					"name" : "ksvulkanapp",
+					"projectIndex" : 2
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "vulkanmain::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-vulkanmain-Debug-508b2fb8233282745313.json",
+					"name" : "vulkanmain",
+					"projectIndex" : 0
+				}
+			]
+		}
+	],
+	"kind" : "codemodel",
+	"paths" : 
+	{
+		"build" : "/Users/shivaaz/Projects/vulkan/Vulkan/Vulkan/cmake-build-debug",
+		"source" : "/Users/shivaaz/Projects/vulkan/Vulkan/Vulkan"
+	},
+	"version" : 
+	{
+		"major" : 2,
+		"minor" : 3
+	}
+}

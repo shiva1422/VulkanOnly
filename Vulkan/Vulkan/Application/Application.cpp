@@ -17,6 +17,6 @@ void KSApplication::run()
 {
     while(true)
     {
-        Logger::printf("KSApplication Running");
+       // Logger::printf("KSApplication Running");
     }
 }

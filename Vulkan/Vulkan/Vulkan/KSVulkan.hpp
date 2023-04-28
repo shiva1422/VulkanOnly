@@ -33,8 +33,8 @@ private:
 
     friend class KSVulkan;
     //TODO 0 indicates a valid queue value so its not good to decide if its valid number try set to max of use std::optional  c++17
-    uint32_t graphicsFamily;
-    uint32_t presentFamily;
+    uint32_t graphicsFamily = UINT32_MAX;
+    uint32_t presentFamily = UINT32_MAX;
 };
 
 class SwapChainInfo{
@@ -55,6 +55,8 @@ public:
     bool configure();//TODO later use config properties common to graphics folder.
     
     void release();
+
+    void drawFrame();
 
 private:
 
@@ -82,6 +84,16 @@ private:
     bool  createRenderPass();
 
     bool createGraphicsPipeline();
+
+    bool createFrameBuffers();
+
+    bool createCommandPool();
+
+    bool createCommandBuffer();
+
+    bool createSyncObjects();
+
+    bool recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
 
     bool checkValidationSupport();
     
@@ -148,6 +160,20 @@ private:
 
     VkPipeline graphicsPipeline;
 
+    std::vector<VkFramebuffer> swapChainFramebuffers;
+
+    //commands pools manage mem to store command buffers
+    VkCommandPool commandPool;
+
+    VkCommandBuffer commandBuffer;
+
+
+    /*
+    * semaphores are used to specify the execution order of operations on the GPU while fences are used to keep the CPU and GPU in sync with each-other.
+    */
+    VkSemaphore imageAvailableSemaphore;
+    VkSemaphore renderFinishedSemaphore;
+    VkFence inFlightFence;
 
 
 

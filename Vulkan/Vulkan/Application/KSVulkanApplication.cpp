@@ -16,7 +16,6 @@
 #include <glm/vec4.hpp>
 #include <glm/mat4x4.hpp>
 #include <unistd.h>
-
 #define LOGTAG "KSVulkanApplication"
 
  
@@ -34,6 +33,7 @@ KSVulkanApplication::~KSVulkanApplication()
 
 void KSVulkanApplication::run()
 {
+
     onWindowInit();
     vulkanInit();
     assert(createVKSurface());
@@ -43,9 +43,24 @@ void KSVulkanApplication::run()
         usleep(32000);
      //   Logger::info(LOGTAG, "Main Loop");
         glfwPollEvents();
+        onDraw();
     }
 
    // KSApplication::run();
+}
+
+void KSVulkanApplication::drawVulkan()
+{
+
+
+
+}
+
+void KSVulkanApplication::onDraw()
+{
+  vulkan.drawFrame();
+  vkDeviceWaitIdle(vulkan.vkDevice);//to comple exec ,may not be idle check comments rendering and presentation
+ // Logger::debug(LOGTAG,"onDraw");
 }
 
 bool KSVulkanApplication::vulkanInit()
@@ -84,3 +99,6 @@ void KSVulkanApplication::getFrameBufferSize(int &width, int &height) {
     //get pixels size from screen coordinates dp
     glfwGetFramebufferSize(window,&width, &height);
 }
+
+
+

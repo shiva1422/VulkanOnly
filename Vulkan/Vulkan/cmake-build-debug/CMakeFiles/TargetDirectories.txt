@@ -1,0 +1,9 @@
+/Users/shivaaz/Projects/vulkan/Vulkan/Vulkan/cmake-build-debug/CMakeFiles/vulkanmain.dir
+/Users/shivaaz/Projects/vulkan/Vulkan/Vulkan/cmake-build-debug/CMakeFiles/edit_cache.dir
+/Users/shivaaz/Projects/vulkan/Vulkan/Vulkan/cmake-build-debug/CMakeFiles/rebuild_cache.dir
+/Users/shivaaz/Projects/vulkan/Vulkan/Vulkan/cmake-build-debug/ksvulkan/CMakeFiles/ksvulkan.dir
+/Users/shivaaz/Projects/vulkan/Vulkan/Vulkan/cmake-build-debug/ksvulkan/CMakeFiles/edit_cache.dir
+/Users/shivaaz/Projects/vulkan/Vulkan/Vulkan/cmake-build-debug/ksvulkan/CMakeFiles/rebuild_cache.dir
+/Users/shivaaz/Projects/vulkan/Vulkan/Vulkan/cmake-build-debug/ksvulkanapp/CMakeFiles/ksvulkanapp.dir
+/Users/shivaaz/Projects/vulkan/Vulkan/Vulkan/cmake-build-debug/ksvulkanapp/CMakeFiles/edit_cache.dir
+/Users/shivaaz/Projects/vulkan/Vulkan/Vulkan/cmake-build-debug/ksvulkanapp/CMakeFiles/rebuild_cache.dir

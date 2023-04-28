@@ -1,0 +1,5 @@
+/Applications/CLion.app/Contents/bin/cmake/mac/bin/cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_MAKE_PROGRAM=/Applications/CLion.app/Contents/bin/ninja/mac/ninja -G Ninja -S /Users/shivaaz/Projects/vulkan/Vulkan/Vulkan -B /Users/shivaaz/Projects/vulkan/Vulkan/Vulkan/cmake-build-debug
+-- found no env named GLFW_HOME
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /Users/shivaaz/Projects/vulkan/Vulkan/Vulkan/cmake-build-debug

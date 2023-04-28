@@ -8,10 +8,14 @@
 #include <iostream>
 #include "Logger.h"
 #include "Application/KSVulkanApplication.hpp"
+#include "Application/Test/TestVKApp.h"
+
 
 int main()
 {
     KSVulkanApplication vulkanApp;
+    //TestVKApp vulkanApp;//Create Commaand pool
+
     vulkanApp.run();
 
     /*if (glfwVulkanSupported())
